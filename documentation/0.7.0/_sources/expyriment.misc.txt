@@ -1,0 +1,40 @@
+expyriment.misc
+===============
+
+.. automodule:: expyriment.misc
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
+
+Modules
+---------
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   expyriment.misc.constants
+   expyriment.misc.data_preprocessing
+   expyriment.misc.defaults
+   expyriment.misc.extras
+   expyriment.misc.geometry
+   expyriment.misc.statistics
+
+Classes
+---------
+.. toctree::
+   :titlesonly:
+
+   expyriment.misc.Buffer
+   expyriment.misc.ByteBuffer
+   expyriment.misc.Clock
+
+Functions
+-----------
+.. autofunction:: expyriment.misc.add_fonts
+.. autofunction:: expyriment.misc.compare_codes
+.. autofunction:: expyriment.misc.find_font
+.. autofunction:: expyriment.misc.list_fonts
+.. autofunction:: expyriment.misc.str2unicode
+.. autofunction:: expyriment.misc.unicode2str

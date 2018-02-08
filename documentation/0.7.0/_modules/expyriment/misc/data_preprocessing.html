@@ -1,0 +1,1391 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>expyriment.misc.data_preprocessing &mdash; Expyriment 0.7.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.7.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="top" title="Expyriment 0.7.0 documentation" href="../../../index.html" />
+    <link rel="up" title="expyriment.misc" href="../misc.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">Expyriment 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../expyriment.html" >expyriment</a> &raquo;</li>
+          <li><a href="../misc.html" accesskey="U">expyriment.misc</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for expyriment.misc.data_preprocessing</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;Data Preprocessing Module.</span>
+
+<span class="sd">This module contains several classes and functions that help</span>
+<span class="sd">to handle, preprocessing and aggregate Expyriment data files.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&#39;Florian Krause &lt;florian@expyriment.org&gt;, </span><span class="se">\</span>
+<span class="s">Oliver Lindemann &lt;oliver@expyriment.org&gt;&#39;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+<span class="n">__revision__</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span> <span class="kn">as</span> <span class="nn">_os</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">locale</span> <span class="kn">as</span> <span class="nn">_locale</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">_locale</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># Does not exist on Android</span>
+<span class="kn">import</span> <span class="nn">sys</span> <span class="kn">as</span> <span class="nn">_sys</span>
+<span class="kn">import</span> <span class="nn">types</span> <span class="kn">as</span> <span class="nn">_types</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span> <span class="k">as</span> <span class="n">_copy</span>
+<span class="kn">import</span> <span class="nn">codecs</span> <span class="kn">as</span> <span class="nn">_codecs</span>
+<span class="kn">import</span> <span class="nn">re</span> <span class="kn">as</span> <span class="nn">_re</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">_np</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">_np</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="kn">from</span> <span class="nn">expyriment.misc</span> <span class="kn">import</span> <span class="n">unicode2str</span> <span class="k">as</span> <span class="n">_unicode2str</span>
+<span class="kn">from</span> <span class="nn">expyriment.misc</span> <span class="kn">import</span> <span class="n">str2unicode</span> <span class="k">as</span> <span class="n">_str2unicode</span>
+
+
+<div class="viewcode-block" id="read_datafile"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.html#expyriment.misc.data_preprocessing.read_datafile">[docs]</a><span class="k">def</span> <span class="nf">read_datafile</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">only_header_and_variable_names</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read an Expyriment data file.</span>
+
+<span class="sd">    Returns the data, the variable names, the subject info &amp; the comments:</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str</span>
+<span class="sd">        name (fullpath) of the Expyriment data file</span>
+<span class="sd">    only_header_and_variable_names : bool, optional</span>
+<span class="sd">        if True the function reads only the header and variable names</span>
+<span class="sd">        (default=False)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    data : list of list</span>
+<span class="sd">        data array</span>
+<span class="sd">    variables : list of str</span>
+<span class="sd">        variable names list</span>
+<span class="sd">    subject_info : dict</span>
+<span class="sd">        dictionary with subject information (incl. date and between</span>
+<span class="sd">        subject factors)</span>
+<span class="sd">    comments : str</span>
+<span class="sd">        string with remaining comments</span>
+<span class="sd">    encoding : str, optional</span>
+<span class="sd">        the encoding with which the contents of the file will be read</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">delimiter</span> <span class="o">=</span> <span class="s">&quot;,&quot;</span>
+    <span class="n">variables</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">subject_info</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">comments</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">encoding</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fl</span><span class="p">:</span>
+            <span class="n">first_line</span> <span class="o">=</span> <span class="n">fl</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+            <span class="n">encoding</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;coding[:=]\s*([-\w.]+)&quot;</span><span class="p">,</span> <span class="n">first_line</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">encoding</span> <span class="o">==</span> <span class="p">[]:</span>
+                <span class="n">second_line</span> <span class="o">=</span> <span class="n">fl</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+                <span class="n">encoding</span> <span class="o">=</span> <span class="n">_re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;coding[:=]\s*([-\w.]+)&quot;</span><span class="p">,</span>
+                                       <span class="n">second_line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">encoding</span> <span class="o">==</span> <span class="p">[]:</span>
+                    <span class="n">encoding</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="p">[</span><span class="n">encoding</span><span class="p">]</span>
+
+    <span class="n">fl</span> <span class="o">=</span> <span class="n">_codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s">&#39;replace&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">fl</span><span class="p">:</span>
+        <span class="c"># parse infos</span>
+        <span class="n">ln</span> <span class="o">=</span> <span class="n">_str2unicode</span><span class="p">(</span><span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">ln</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;#&quot;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">variables</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">variables</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">delimiter</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">only_header_and_variable_names</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ln</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">delimiter</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ln</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;#s&quot;</span><span class="p">):</span>
+                <span class="n">ln</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;#s&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="p">,</span> <span class="s">&quot;:&quot;</span><span class="p">)</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;:&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">subject_info</span><span class="p">[</span><span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">subject_info</span><span class="p">[</span><span class="s">&quot;#s{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">subject_info</span><span class="p">))]</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">ln</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;#date:&quot;</span><span class="p">):</span>
+                <span class="n">ln</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;#date:&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">subject_info</span><span class="p">[</span><span class="s">&quot;date&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">comments</span> <span class="o">=</span> <span class="n">comments</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span> <span class="n">ln</span>
+    <span class="n">fl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="c"># strip variables</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">)):</span>
+        <span class="n">variables</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">variables</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">subject_info</span><span class="p">,</span> <span class="n">comments</span>
+
+</div>
+<div class="viewcode-block" id="write_csv_file"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.html#expyriment.misc.data_preprocessing.write_csv_file">[docs]</a><span class="k">def</span> <span class="nf">write_csv_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">varnames</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">&#39;,&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Write 2D data array to csv file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str</span>
+<span class="sd">        name (fullpath) of the data file</span>
+<span class="sd">    data : list of list</span>
+<span class="sd">        2D array with data (list of list)</span>
+<span class="sd">    varnames : list of str, optional</span>
+<span class="sd">        array of strings representing variable names</span>
+<span class="sd">    delimiter : str, optional</span>
+<span class="sd">        delimiter character (default=&quot;,&quot;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;write file: {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">_locale_enc</span> <span class="o">=</span> <span class="n">_locale</span><span class="o">.</span><span class="n">getdefaultlocale</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">_locale_enc</span> <span class="o">=</span> <span class="s">&quot;UTF-8&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="s">&quot;# -*- coding: {0} -*-</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">_locale_enc</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varnames</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">varnames</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">delimiter</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">_unicode2str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+        <span class="n">cnt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">delimiter</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">):</span>
+                    <span class="n">_unicode2str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+
+    <span class="k">print</span> <span class="s">&quot; ({0} cells in {1} rows)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cnt</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="write_concatenated_data"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.html#expyriment.misc.data_preprocessing.write_concatenated_data">[docs]</a><span class="k">def</span> <span class="nf">write_concatenated_data</span><span class="p">(</span><span class="n">data_folder</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                            <span class="n">delimiter</span><span class="o">=</span><span class="s">&#39;,&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Concatenate data and write it to a csv file.</span>
+
+<span class="sd">    All files that start with this name will be considered for the</span>
+<span class="sd">    analysis (cf. aggregator.data_files)</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    The function is useful to combine the experimental data and prepare for</span>
+<span class="sd">    further processing with other software.</span>
+<span class="sd">    It basically wraps Aggregator.write_concatenated_data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_folder : str</span>
+<span class="sd">        folder which contains of data of the subjects (str)</span>
+<span class="sd">    file_name : str</span>
+<span class="sd">        name of the files</span>
+<span class="sd">    output_file : str, optional</span>
+<span class="sd">        name of data output file.  If no specified data will the save</span>
+<span class="sd">        to {file_name}.csv</span>
+<span class="sd">    delimiter : str, optional</span>
+<span class="sd">        delimiter character (default=&quot;,&quot;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">Aggregator</span><span class="p">(</span><span class="n">data_folder</span><span class="o">=</span><span class="n">data_folder</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="n">file_name</span><span class="p">)</span>\
+        <span class="o">.</span><span class="n">write_concatenated_data</span><span class="p">(</span><span class="n">output_file</span><span class="o">=</span><span class="n">output_file</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="n">delimiter</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Aggregator"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator">[docs]</a><span class="k">class</span> <span class="nc">Aggregator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class implementing a tool to aggregate Expyriment data.</span>
+
+<span class="sd">    This class is used to handle the multiple data files of a Experiment</span>
+<span class="sd">    and process (i.e, aggregate) the data for further analysis</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    This tool helps, for instance, to aggregate your data for certain combinations</span>
+<span class="sd">    of independent variables. E.g., data of a numerical magnitude judgement</span>
+<span class="sd">    experiment. The code below makes a file with mean and median RTs and a</span>
+<span class="sd">    second file with the errors and the number of trials::</span>
+
+<span class="sd">        from expyriment.misc import data_preprocessing</span>
+<span class="sd">        agg = data_preprocessing.Aggregator(data_folder= &quot;./mydata/&quot;,</span>
+<span class="sd">                                file_name = &quot;MagnitudeJudgements&quot;)</span>
+<span class="sd">        agg.set_computed_variables([&quot;parity = target_number % 2&quot;,</span>
+<span class="sd">                       &quot;size = target_number &gt; 65&quot;])</span>
+<span class="sd">        agg.set_independent_variables([&quot;hand&quot;, &quot;size&quot; , &quot;parity&quot;])</span>
+
+<span class="sd">        agg.set_exclusions([&quot;trial_counter &lt; 0&quot;,</span>
+<span class="sd">                            &quot;error != 0&quot;,</span>
+<span class="sd">                            &quot;RT &lt; 2*std&quot;,</span>
+<span class="sd">                            &quot;RT &gt; 2*std&quot; # remove depending std in iv factor</span>
+<span class="sd">                                         # combination for each subject</span>
+<span class="sd">                            ])</span>
+<span class="sd">        agg.set_dependent_variables([&quot;mean(RT)&quot;, &quot;median(RT)&quot;])</span>
+<span class="sd">        agg.aggregate(output_file=&quot;rts.csv&quot;)</span>
+
+<span class="sd">        agg.set_exclusions([&quot;trial_counter &lt; 0&quot;])</span>
+<span class="sd">        agg.set_dependent_variables([&quot;sum(error)&quot;, &quot;n_trials&quot;])</span>
+<span class="sd">        agg.aggregate(output_file=&quot;errors.csv&quot;)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_relations</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;==&quot;</span><span class="p">,</span> <span class="s">&quot;!=&quot;</span><span class="p">,</span> <span class="s">&quot;&gt;&quot;</span><span class="p">,</span> <span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s">&quot;&gt;=&quot;</span><span class="p">,</span> <span class="s">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s">&quot;=&gt;&quot;</span><span class="p">,</span> <span class="s">&quot;&lt;=&quot;</span><span class="p">]</span>
+    <span class="n">_operations</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="s">&quot;-&quot;</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;/&quot;</span><span class="p">,</span> <span class="s">&quot;%&quot;</span><span class="p">]</span>
+    <span class="n">_dv_functions</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;mean&quot;</span><span class="p">,</span> <span class="s">&quot;median&quot;</span><span class="p">,</span> <span class="s">&quot;sum&quot;</span><span class="p">,</span> <span class="s">&quot;std&quot;</span><span class="p">,</span> <span class="s">&quot;n_trials&quot;</span><span class="p">]</span>
+
+    <span class="n">_default_suffix</span> <span class="o">=</span> <span class="s">&quot;.xpd&quot;</span>
+
+<div class="viewcode-block" id="Aggregator.__init__"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_folder</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">_default_suffix</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an aggregator.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data_folder :str</span>
+<span class="sd">            folder which contains of data of the subjects</span>
+<span class="sd">        file_name : str</span>
+<span class="sd">            name of the files. All files that start with this name will</span>
+<span class="sd">            be considered for the analysis (cf. aggregator.data_files)</span>
+<span class="sd">        suffix : str, optional</span>
+<span class="sd">            if specified only files that end with this particular</span>
+<span class="sd">            suffix will be considered (default=.xpd)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">_np</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_types</span><span class="o">.</span><span class="n">ModuleType</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;Aggregator can not be initialized.</span>
+<span class="s">The Python package &#39;numpy&#39; is not installed.&quot;&quot;&quot;</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+        <span class="n">_version</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_version</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">_version</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s">&quot;Expyriment {0} &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">__version__</span><span class="p">)</span> <span class="o">+</span>
+                              <span class="s">&quot;is not compatible with Numpy {0}.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                  <span class="n">_np</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="o">+</span>
+                              <span class="s">&quot;</span><span class="se">\n</span><span class="s">Please install Numpy 1.6 or higher.&quot;</span><span class="p">)</span>
+
+        <span class="k">print</span> <span class="s">&quot;** Expyriment Data Preprocessor **&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">data_folder</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for the current design as text string.&quot;&quot;&quot;</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="s">&quot;Data</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- file name: &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- folder: &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- {0} subject_data sets</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">))</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- {0} variables: {1}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">)</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- recoded variables: {0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span><span class="p">)</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- computed variables: {0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span><span class="p">)</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;Design</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- independent Variables: {0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span><span class="p">)</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- dependent Variables: {0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span><span class="p">)</span>
+        <span class="n">design_str</span> <span class="o">=</span> <span class="n">design_str</span> <span class="o">+</span> <span class="s">u&quot;- exclude: {0}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">design_str</span>
+
+    <span class="k">def</span> <span class="nf">_parse_syntax</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">syntax</span><span class="p">,</span> <span class="n">throw_exception</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Preprocess relation and operation syntax.</span>
+
+<span class="sd">        Returns relation array.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">rels_ops</span> <span class="o">=</span> <span class="n">_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_relations</span><span class="p">)</span>
+        <span class="n">rels_ops</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_operations</span><span class="p">)</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">ro</span> <span class="ow">in</span> <span class="n">rels_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">syntax</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">ro</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="n">ro</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">throw_exception</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Incorrect syntax: &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">_unicode2str</span><span class="p">(</span><span class="n">syntax</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">syntax</span> <span class="o">=</span> <span class="n">syntax</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">found</span><span class="p">)</span>
+            <span class="n">var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">syntax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="bp">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">var_id</span><span class="p">,</span> <span class="n">found</span><span class="p">,</span> <span class="n">syntax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+
+    <span class="k">def</span> <span class="nf">_get_variable_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">throw_exception</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">variables</span> <span class="o">==</span> <span class="n">v</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cnt</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">throw_exception</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown variable name &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">variables</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_add_independent_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="n">var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">variable</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">var_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_add_dependent_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">variable</span> <span class="o">==</span> <span class="s">&quot;n_trials&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">variable</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">variable</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;)&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;(&quot;</span><span class="p">)</span>
+            <span class="n">dv_fnc</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dv_txt</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s">&quot;Incorrect syntax for DV: &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">_unicode2str</span><span class="p">(</span><span class="n">variable</span><span class="p">)))</span>
+            <span class="n">var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">dv_txt</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dv_fnc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv_functions</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">dv_fnc</span><span class="p">,</span> <span class="n">var_id</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown function for dependent variable:&quot;</span> <span class="o">+</span>
+                                   <span class="s">&quot; &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_unicode2str</span><span class="p">(</span><span class="n">dv_fnc</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_add_compute_variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a new variable to be computed.&quot;&quot;&quot;</span>
+
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">compute_syntax</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;==&quot;</span><span class="p">,</span> <span class="s">&quot;@@&quot;</span><span class="p">)</span>  <span class="c"># avoid confusion = &amp; ==</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;!=&quot;</span><span class="p">,</span> <span class="s">&quot;##&quot;</span><span class="p">)</span>  <span class="c"># avoid confusion = &amp; ==</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">variable_name</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">syntax</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">syntax</span> <span class="o">=</span> <span class="n">syntax</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;@@&quot;</span><span class="p">,</span> <span class="s">&quot;==&quot;</span><span class="p">)</span>
+            <span class="n">syntax</span> <span class="o">=</span> <span class="n">syntax</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;##&quot;</span><span class="p">,</span> <span class="s">&quot;==&quot;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Incorrect compute syntax: &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">compute_syntax</span><span class="p">)))</span>
+
+        <span class="n">variable_def</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_syntax</span><span class="p">(</span><span class="n">syntax</span><span class="p">,</span> <span class="n">throw_exception</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">variable_def</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">variable_def</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_operation</span><span class="p">(</span><span class="n">syntax</span><span class="p">,</span> <span class="n">throw_exception</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Variable already defined &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">variable_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_computes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">variable_name</span><span class="p">,</span> <span class="n">variable_def</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_add_exclusion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relation_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add an exclusion.&quot;&quot;&quot;</span>
+
+        <span class="n">relation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_syntax</span><span class="p">(</span><span class="n">relation_syntax</span><span class="p">,</span> <span class="n">throw_exception</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">relation</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relations</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">relation</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Incorrect exclusion syntax: &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">relation_syntax</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_add_variable_recoding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recode_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a new variable recoding rule.&quot;&quot;&quot;</span>
+
+        <span class="n">error</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">recode_syntax</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;:&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="bp">True</span><span class="p">)</span>
+            <span class="n">excl_array</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;,&quot;</span><span class="p">):</span>
+                <span class="n">rule</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;=&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rule</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">excl_array</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">rule</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">rule</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">error</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Incorrect recoding syntax: &#39;{0}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">recode_syntax</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_recode</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">var_id</span><span class="p">,</span> <span class="n">excl_array</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_find_idx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">column_id</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find the indices of elements in a data column.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        It compares of column elements with a value or the elements of a second</span>
+<span class="sd">        column, if value is a name of variable.</span>
+<span class="sd">        The method deals with numerical and string comparisons and throws an</span>
+<span class="sd">        exception for invalid string comparisons.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : numpy.array</span>
+<span class="sd">            the data</span>
+<span class="sd">        column_id : int</span>
+<span class="sd">            id of column to compare</span>
+<span class="sd">        relation : str</span>
+<span class="sd">            relation as string.  possible relations:</span>
+<span class="sd">            &quot;==&quot;, &quot;!=&quot;, &quot;&gt;&quot;, &quot;&lt;&quot;, &quot;&gt;=&quot;, &quot;&lt;=&quot;, &quot;=&gt;&quot;, &quot;&lt;=&quot;</span>
+<span class="sd">        value : numeric or string</span>
+<span class="sd">            value to find or a variable name</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># is value a variable name</span>
+        <span class="n">second_var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+
+        <span class="c"># _add_exclusion</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">column_id</span><span class="p">])</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="c"># handling strings</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">column_id</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">second_var_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">second_var_id</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="c"># handling strings</span>
+            <span class="k">if</span> <span class="n">second_var_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">second_var_id</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&quot;std&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="c"># remove relative depending std</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="p">)</span>
+            <span class="n">fac</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="n">mean_stds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv_mean_std</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column_id</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">relation</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;&gt;&quot;</span><span class="p">,</span> <span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s">&quot;=&gt;&quot;</span><span class="p">,</span> <span class="s">&quot;&gt;=&quot;</span><span class="p">,</span> <span class="s">&quot;=&lt;&quot;</span><span class="p">,</span> <span class="s">&quot;&lt;=&quot;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Incorrect syntax for &quot;</span> <span class="o">+</span>
+                                   <span class="s">&quot;exception: &#39;{0} {1}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                       <span class="n">_unicode2str</span><span class="p">(</span><span class="n">relation</span><span class="p">),</span>
+                                       <span class="n">_unicode2str</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+                <span class="c">#find name of combination</span>
+                <span class="n">combi_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">column_id</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">iv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">iv</span><span class="p">],</span> <span class="nb">unicode</span><span class="p">):</span>
+                        <span class="n">_row_data</span> <span class="o">=</span> <span class="n">_unicode2str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">iv</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_row_data</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">iv</span><span class="p">]</span>
+                    <span class="n">combi_str</span> <span class="o">=</span> <span class="n">combi_str</span> <span class="o">+</span> <span class="s">&quot;_&quot;</span> <span class="o">+</span> \
+                        <span class="s">&quot;{0}{1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_unicode2str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">iv</span><span class="p">]),</span>
+                                        <span class="n">_row_data</span><span class="p">)</span>
+                <span class="n">deviation</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">column_id</span><span class="p">])</span> <span class="o">-</span> <span class="n">mean_stds</span><span class="p">[</span><span class="n">combi_str</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&gt;&quot;</span> <span class="ow">and</span>
+                    <span class="n">deviation</span> <span class="o">&gt;</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">mean_stds</span><span class="p">[</span><span class="n">combi_str</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="ow">or</span> \
+                   <span class="p">(</span><span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;=&gt;&quot;</span> <span class="ow">or</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&gt;=&quot;</span> <span class="ow">and</span>
+                    <span class="n">deviation</span> <span class="o">&gt;=</span> <span class="n">fac</span> <span class="o">*</span> <span class="n">mean_stds</span><span class="p">[</span><span class="n">combi_str</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="ow">or</span> \
+                   <span class="p">(</span><span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&lt;&quot;</span> <span class="ow">and</span>
+                    <span class="n">deviation</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">fac</span> <span class="o">*</span> <span class="n">mean_stds</span><span class="p">[</span><span class="n">combi_str</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="ow">or</span> \
+                   <span class="p">(</span><span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;=&lt;&quot;</span> <span class="ow">or</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&lt;=&quot;</span> <span class="ow">and</span>
+                        <span class="n">deviation</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="n">fac</span> <span class="o">*</span> <span class="n">mean_stds</span><span class="p">[</span><span class="n">combi_str</span><span class="p">][</span><span class="mi">1</span><span class="p">]):</span>
+                        <span class="n">idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cnt</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">idx</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;!=&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">!=</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;==&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">==</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&lt;&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">&lt;</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&gt;&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">&gt;</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;=&lt;&quot;</span> <span class="ow">or</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&lt;=&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">&lt;=</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;=&gt;&quot;</span> <span class="ow">or</span> <span class="n">relation</span> <span class="o">==</span> <span class="s">&quot;&gt;=&quot;</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">col</span> <span class="o">&gt;=</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># should never occur</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">comp</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s">&quot;Incorrect syntax for &quot;</span> <span class="o">+</span> <span class="s">&quot;exception: &#39;{0} {1}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">_unicode2str</span><span class="p">(</span><span class="n">relation</span><span class="p">),</span> <span class="n">_unicode2str</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="n">_np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_dv_mean_std</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">column_dv_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; returns dict with std for iv_combinations &quot;&quot;&quot;</span>
+        <span class="c"># get all iv values</span>
+        <span class="n">iv_values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">iv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">iv</span><span class="p">]))</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+            <span class="n">iv_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
+
+        <span class="n">new_variable_names</span><span class="p">,</span> <span class="n">combinations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_new_variables</span><span class="p">(</span><span class="n">iv_values</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">combinations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">combinations</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;total&quot;</span><span class="p">]</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">fac_cmb</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">combinations</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">fac_cmb</span> <span class="o">==</span> <span class="s">&quot;total&quot;</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># find idx of combinations</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="bp">None</span>
+                <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">iv</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">):</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">iv</span><span class="p">]</span> <span class="o">==</span> <span class="n">fac_cmb</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">&amp;</span> <span class="n">tmp</span>
+            <span class="c"># calc std over idx</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">new_variable_names</span><span class="p">[</span><span class="n">cnt</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">_np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">column_dv_id</span><span class="p">])),</span>
+                    <span class="n">_np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">column_dv_id</span><span class="p">]))]</span>
+                    <span class="c"># ignore first new var name, which is subject_id</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_get_new_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iv_values</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the new variables names and factor_combinations.</span>
+
+<span class="sd">        Requires the values for all independent variables iv_values: 2d array.</span>
+<span class="sd">        Adds furthermore the defined the subject variables.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">increase_combination</span><span class="p">(</span><span class="n">comb</span><span class="p">,</span> <span class="n">maxima</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Recursive helper function.</span>
+
+<span class="sd">            Returns None if end reached.</span>
+
+<span class="sd">            &quot;&quot;&quot;</span>
+
+            <span class="k">if</span> <span class="n">pos</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">comb</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">comb</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c"># increase last position</span>
+            <span class="k">if</span> <span class="n">comb</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">maxima</span><span class="p">[</span><span class="n">pos</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">pos</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>  <span class="c"># end reached</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">comb</span><span class="p">)):</span>  <span class="c"># set to zero &amp; all pos. behind</span>
+                        <span class="n">comb</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">return</span> <span class="n">increase_combination</span><span class="p">(</span><span class="n">comb</span><span class="p">,</span> <span class="n">maxima</span><span class="p">,</span> <span class="n">pos</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>  <span class="c"># increase position before</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">comb</span>
+
+        <span class="c"># calc n levels</span>
+        <span class="n">n_levels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">iv_values</span><span class="p">:</span>
+            <span class="n">n_levels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c"># build new variables names</span>
+        <span class="n">factor_combinations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">iv_values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tmp_comb</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">tmp_comb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">txt</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
+                <span class="n">comb_values</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tmp_comb</span><span class="p">):</span>
+                    <span class="n">comb_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">iv_values</span><span class="p">[</span><span class="n">c</span><span class="p">][</span><span class="n">x</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">txt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">txt</span> <span class="o">=</span> <span class="n">txt</span> <span class="o">+</span> <span class="s">&quot;_&quot;</span>
+                    <span class="n">txt</span> <span class="o">=</span> <span class="n">txt</span> <span class="o">+</span> <span class="s">u&quot;{0}{1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">[</span><span class="n">c</span><span class="p">]],</span>
+                                <span class="n">comb_values</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">txt</span><span class="p">)</span>
+                <span class="n">factor_combinations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">comb_values</span><span class="p">)</span>
+                <span class="n">tmp_comb</span> <span class="o">=</span> <span class="n">increase_combination</span><span class="p">(</span><span class="n">tmp_comb</span><span class="p">,</span> <span class="n">n_levels</span><span class="p">)</span>
+
+        <span class="n">new_variable_names</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;subject_id&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">sv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_variables</span><span class="p">:</span>
+            <span class="n">new_variable_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">u&quot;{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sv</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">dv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;n_trials&quot;</span><span class="p">:</span>
+                <span class="n">dv_txt</span> <span class="o">=</span> <span class="s">&quot;ntr&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dv_txt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">[</span><span class="n">dv</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+                    <span class="n">new_variable_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">u&quot;{0}_{1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dv_txt</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_variable_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">u&quot;{0}_total&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dv_txt</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">new_variable_names</span><span class="p">,</span> <span class="n">factor_combinations</span>
+
+<div class="viewcode-block" id="Aggregator.reset"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_folder</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">_default_suffix</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reset the aggregator class and clear design.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data_folder : str</span>
+<span class="sd">            folder which contains of data of the subjects</span>
+<span class="sd">        file_name : str</span>
+<span class="sd">            name of the files. All files that start with this name</span>
+<span class="sd">            will be considered for the analysis (cf. aggregator.data_files)</span>
+<span class="sd">        suffix : str, optional</span>
+<span class="sd">            if specified only files that end with this particular suffix</span>
+<span class="sd">            will be considered (default=.xpd)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">=</span> <span class="n">data_folder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_computes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_recode</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span> <span class="o">=</span> <span class="n">suffix</span>
+
+        <span class="k">for</span> <span class="n">flname</span> <span class="ow">in</span> <span class="n">_os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">_os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">+</span> <span class="s">&quot;/&quot;</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">flname</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_suffix</span><span class="p">)</span> <span class="ow">and</span> \
+                    <span class="n">flname</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">):</span>
+                <span class="n">_data</span><span class="p">,</span> <span class="n">vnames</span><span class="p">,</span> <span class="n">_subject_info</span><span class="p">,</span> <span class="n">_comments</span> <span class="o">=</span> \
+                    <span class="n">read_datafile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">+</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="n">flname</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span> <span class="o">=</span> <span class="n">vnames</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">vnames</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">:</span>
+                        <span class="n">message</span> <span class="o">=</span> <span class="s">u&quot;Different variables in &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flname</span><span class="p">)</span>
+                        <span class="n">message</span> <span class="o">=</span> <span class="n">message</span> <span class="o">+</span> <span class="s">u&quot;</span><span class="se">\n</span><span class="s">{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">vnames</span><span class="p">)</span>
+                        <span class="n">message</span> <span class="o">=</span> <span class="n">message</span> <span class="o">+</span> <span class="s">u&quot;</span><span class="se">\n</span><span class="s">instead of</span><span class="se">\n</span><span class="s">{0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">_unicode2str</span><span class="p">(</span><span class="n">message</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flname</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;No data files found in {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span><span class="p">)))</span>
+
+        <span class="k">print</span> <span class="s">&quot;found {0} subject_data sets&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">))</span>
+        <span class="k">print</span> <span class="s">&quot;found {0} variables: {1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">),</span>
+                                                <span class="p">[</span><span class="n">_unicode2str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span>
+                                                 <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.data_folder"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.data_folder">[docs]</a>    <span class="k">def</span> <span class="nf">data_folder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for data_folder.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.data_files"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.data_files">[docs]</a>    <span class="k">def</span> <span class="nf">data_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for data_files.</span>
+
+<span class="sd">        The list of the data files considered for the analysis.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.file_name"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.file_name">[docs]</a>    <span class="k">def</span> <span class="nf">file_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for file_name.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.variables">[docs]</a>    <span class="k">def</span> <span class="nf">variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for variables.</span>
+
+<span class="sd">        The specified variables including the new computer variables and</span>
+<span class="sd">        between subject variables and added variables.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">variables</span> <span class="o">=</span> <span class="n">_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">)</span>
+        <span class="n">variables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span><span class="p">)</span>
+        <span class="n">variables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">variables</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.added_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.added_variables">[docs]</a>    <span class="k">def</span> <span class="nf">added_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for added variables.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.computed_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.computed_variables">[docs]</a>    <span class="k">def</span> <span class="nf">computed_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for computed variables.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.variable_recodings"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.variable_recodings">[docs]</a>    <span class="k">def</span> <span class="nf">variable_recodings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for variable recodings.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.subject_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.subject_variables">[docs]</a>    <span class="k">def</span> <span class="nf">subject_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for subject variable.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.exclusions"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.exclusions">[docs]</a>    <span class="k">def</span> <span class="nf">exclusions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for exclusions.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.dependent_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.dependent_variables">[docs]</a>    <span class="k">def</span> <span class="nf">dependent_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for dependent variables.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.independent_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.independent_variables">[docs]</a>    <span class="k">def</span> <span class="nf">independent_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for independent_variables.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span>
+</div>
+<div class="viewcode-block" id="Aggregator.get_data"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.get_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">recode_variables</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                 <span class="n">compute_new_variables</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">exclude_trials</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read data from from a single Expyriment data file.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The function can be only applied on data of aggregator.data_files,</span>
+<span class="sd">        that is, on the files in the defined data folder that start with</span>
+<span class="sd">        the experiment name. According to the defined design, the result</span>
+<span class="sd">        contains recoded data together with the new computed variables, and the</span>
+<span class="sd">        subject variables from the headers of the Expyriment data files.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename : str</span>
+<span class="sd">            name of the Expyriment data file</span>
+<span class="sd">        recode_variables : bool, optional</span>
+<span class="sd">            set to False if defined variable recodings should not be applied</span>
+<span class="sd">            (default=True)</span>
+<span class="sd">        compute_new_variables : bool, optional</span>
+<span class="sd">            set to False if new defined variables should not be computed</span>
+<span class="sd">            (default=True)</span>
+<span class="sd">        exclude_trials : bool, optional</span>
+<span class="sd">            set to False if exclusion rules should not be applied</span>
+<span class="sd">            (default=True)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : numpy.array</span>
+<span class="sd">        var_names : list</span>
+<span class="sd">            list of variable names</span>
+<span class="sd">        info : str</span>
+<span class="sd">            subject info</span>
+<span class="sd">        comment : str</span>
+<span class="sd">            comments in data</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># check filename</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;&#39;{0}&#39; is not in the data list</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">_unicode2str</span><span class="p">(</span><span class="n">filename</span><span class="p">)))</span>
+
+        <span class="n">data</span><span class="p">,</span> <span class="n">_vnames</span><span class="p">,</span> <span class="n">subject_info</span><span class="p">,</span> <span class="n">comments</span> <span class="o">=</span> \
+            <span class="n">read_datafile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">+</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s">&quot;   reading {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_unicode2str</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">recode_variables</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">var_id</span><span class="p">,</span> <span class="n">recoding</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_recode</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">old</span><span class="p">,</span> <span class="n">new</span> <span class="ow">in</span> <span class="n">recoding</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)):</span>
+                        <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">row</span><span class="p">][</span><span class="n">var_id</span><span class="p">]</span> <span class="o">==</span> <span class="n">old</span><span class="p">:</span>
+                            <span class="n">data</span><span class="p">[</span><span class="n">row</span><span class="p">][</span><span class="n">var_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;|S99&#39;</span><span class="p">)</span>
+        <span class="c"># compute new defined variables and append</span>
+        <span class="k">if</span> <span class="n">compute_new_variables</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">new_var_name</span><span class="p">,</span> <span class="n">var_def</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_computes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relations</span><span class="p">:</span>
+                    <span class="c"># relations are true or false</span>
+                    <span class="n">col</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_idx</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                         <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="n">col</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># operations</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">a</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">([</span><span class="n">data</span><span class="p">[:,</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">0</span><span class="p">]]])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+                        <span class="n">second_var_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">var_def</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                                                              <span class="bp">False</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">second_var_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                            <span class="n">b</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span>
+                                <span class="p">[</span><span class="n">data</span><span class="p">[:,</span> <span class="n">second_var_id</span><span class="p">]])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">b</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">var_def</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Error while computing new variable {0}. &quot;</span> <span class="o">+</span> \
+                              <span class="s">&quot;Non-number in variables of {1}&quot;</span>
+                        <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_var_name</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;+&quot;</span><span class="p">:</span>
+                        <span class="n">col</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+                    <span class="k">elif</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;-&quot;</span><span class="p">:</span>
+                        <span class="n">col</span> <span class="o">=</span> <span class="n">a</span> <span class="o">-</span> <span class="n">b</span>
+                    <span class="k">elif</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;*&quot;</span><span class="p">:</span>
+                        <span class="n">col</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span>
+                    <span class="k">elif</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;/&quot;</span><span class="p">:</span>
+                        <span class="n">col</span> <span class="o">=</span> <span class="n">a</span> <span class="o">/</span> <span class="n">b</span>
+                    <span class="k">elif</span> <span class="n">var_def</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;%&quot;</span><span class="p">:</span>
+                        <span class="n">col</span> <span class="o">=</span> <span class="n">a</span> <span class="o">%</span> <span class="n">b</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c"># add subject information</span>
+        <span class="k">for</span> <span class="n">sv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_variables</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">info</span> <span class="o">=</span> <span class="n">subject_info</span><span class="p">[</span><span class="n">sv</span><span class="p">]</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">info</span> <span class="o">=</span> <span class="s">&quot;nan&quot;</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">info</span> <span class="k">for</span> <span class="n">_x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]])</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="o">.</span><span class="n">transpose</span><span class="p">()]</span>
+
+        <span class="c"># _add_exclusion trials</span>
+        <span class="k">if</span> <span class="n">exclude_trials</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">exl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_idx</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">exl</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">exl</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">exl</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">var</span> <span class="o">=</span> <span class="n">_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variables</span><span class="p">)</span>
+        <span class="n">var</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">data</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">subject_info</span><span class="p">,</span> <span class="n">comments</span><span class="p">]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Aggregator.concatenated_data"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.concatenated_data">[docs]</a>    <span class="k">def</span> <span class="nf">concatenated_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for concatenated_data.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Returns all data of all subjects as numpy.array and all variables</span>
+<span class="sd">        names (including added variables). According to the defined design, the</span>
+<span class="sd">        result contains the new computed variables and the subject variables</span>
+<span class="sd">        from the headers of the Expyriment data files.</span>
+
+<span class="sd">        If data have been loaded and no new variable or exclusion has been</span>
+<span class="sd">        defined the concatenated_data will merely return the previous data</span>
+<span class="sd">        without re-processing.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : numpy.array</span>
+<span class="sd">        variables : list of str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c"># data are already loaded and unchanged</span>
+            <span class="n">cdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cdata</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">for</span> <span class="n">flname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">:</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">flname</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">cdata</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="n">cdata</span> <span class="o">=</span> <span class="n">tmp</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">cdata</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">cdata</span><span class="p">,</span> <span class="n">tmp</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="n">cdata</span>
+
+        <span class="c"># append added data</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cdata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">cdata</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">cdata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">cdata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">variables</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.get_variable_data"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.get_variable_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_variable_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the column of data as numpy array.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        variables : list of str</span>
+<span class="sd">            names of the variables to be extracted</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : numpy.array</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="p">[</span><span class="n">variables</span><span class="p">]</span>
+
+        <span class="n">cols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+            <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">throw_exception</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concatenated_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">cols</span><span class="p">])</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">cols</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="Aggregator.add_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.add_variables">[docs]</a>    <span class="k">def</span> <span class="nf">add_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable_names</span><span class="p">,</span> <span class="n">data_columns</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a new variable to the data.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The amount of variables and added columns must match. The added data</span>
+<span class="sd">        must also match the number of rows. Note, manually added variables</span>
+<span class="sd">        will be lost if cases will be excluded afterwards via a call of</span>
+<span class="sd">        the method `set_exclusions`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        variable_names : str</span>
+<span class="sd">            name of the new variable(s)</span>
+<span class="sd">        data_columns : numpy.array</span>
+<span class="sd">            the new data columns as numpy array</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">d</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data_columns</span><span class="p">)</span>
+        <span class="n">data_shape</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_shape</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">d</span><span class="p">])</span>
+            <span class="n">data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">data_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">variable_names</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="n">variable_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">variable_names</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable_names</span><span class="p">)</span> <span class="o">!=</span> <span class="n">data_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s">&quot;Amount of variables and added colums doesn&#39;t fit.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">_np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">concatenated_data</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Number of rows doesn&#39;t match.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">variable_names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span><span class="p">,</span> <span class="n">d</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.write_concatenated_data"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.write_concatenated_data">[docs]</a>    <span class="k">def</span> <span class="nf">write_concatenated_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s">&#39;,&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Concatenate data and write it to a csv file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        output_file : str, optional</span>
+<span class="sd">            name of data output file</span>
+<span class="sd">            If no specified data will the save to {file_name}.csv</span>
+<span class="sd">        delimiter : str</span>
+<span class="sd">            delimiter character (default=&quot;,&quot;)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">output_file</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">output_file</span> <span class="o">=</span> <span class="s">u&quot;{0}.csv&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concatenated_data</span>
+        <span class="n">write_csv_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">output_file</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">varnames</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                       <span class="n">delimiter</span><span class="o">=</span><span class="n">delimiter</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_independent_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_independent_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_independent_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the independent variables.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        variables : str or list</span>
+<span class="sd">            the name(s) of one or more data variables (aggregator.variables)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span> <span class="o">=</span> <span class="p">[</span><span class="n">variables</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span> <span class="o">=</span> <span class="n">variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv_txt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_independent_variable</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_dependent_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_dependent_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_dependent_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dv_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set dependent variables.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dv_syntax : str or list</span>
+<span class="sd">            syntax describing the dependent variable by a function and variable,</span>
+<span class="sd">            e.g. mean(RT)</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Syntax::</span>
+
+<span class="sd">            {function}({variable})</span>
+<span class="sd">                {function} -- mean, median, sum, std or n_trials</span>
+<span class="sd">                              Note: n_trials counts the number of trials</span>
+<span class="sd">                              and does not require a variable as argument</span>
+<span class="sd">                {variable} -- a defined data variable</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">dv_syntax</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span> <span class="o">=</span> <span class="p">[</span><span class="n">dv_syntax</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span> <span class="o">=</span> <span class="n">dv_syntax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv_txt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_dependent_variable</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_exclusions"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_exclusions">[docs]</a>    <span class="k">def</span> <span class="nf">set_exclusions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rule_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set rules to exclude trials from the analysis.</span>
+
+<span class="sd">        The method indicates the rows, which are ignored while reading</span>
+<span class="sd">        the data files. It can therefore not be applied on variables that have</span>
+<span class="sd">        been added later via `add_variables` and results in a loss of all</span>
+<span class="sd">        manually added variables. Setting exclusions requires re-reading of</span>
+<span class="sd">        the data files and might be therefore time consuming. Thus, call this</span>
+<span class="sd">        method always at the beginning of your analysis script.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        rule_syntax : str or list</span>
+<span class="sd">            A string or a list of strings that represent the rules</span>
+<span class="sd">            to exclude trials</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Rule syntax::</span>
+
+<span class="sd">            {variable} {relation} {variable/value}</span>
+<span class="sd">                {variable}  -- a defined data variable</span>
+<span class="sd">                {relation}  --  ==, !=, &gt;, &lt;, &gt;=, &lt;=, =&gt; or &lt;=</span>
+<span class="sd">                {value}     -- string or numeric</span>
+
+<span class="sd">                If value is &quot;{numeric} * std&quot;, trails are excluded in which</span>
+<span class="sd">                the variable is below or above {numeric} standard deviations</span>
+<span class="sd">                from the mean. The relations &quot;==&quot; and &quot;!=&quot; are not allow in</span>
+<span class="sd">                this case. The exclusion criterion is apply for each subject</span>
+<span class="sd">                and factor combination separately.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">rule_syntax</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span> <span class="o">=</span> <span class="p">[</span><span class="n">rule_syntax</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span> <span class="o">=</span> <span class="n">rule_syntax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exclusions_txt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_exclusion</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_variables</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_variable_recoding"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_variable_recoding">[docs]</a>    <span class="k">def</span> <span class="nf">set_variable_recoding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recoding_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set syntax to recode variables.</span>
+
+<span class="sd">        The method defines the variables, which will recoded.  It can not</span>
+<span class="sd">        be applied on variables that have been added later via</span>
+<span class="sd">        `add_variables`. Recoding variables requires re-reading of the data</span>
+<span class="sd">        files and might be therefore time consuming.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        rule_syntax : str or list</span>
+<span class="sd">            A string or a list of strings that represent the variable</span>
+<span class="sd">            recoding syntax</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Recoding syntax::</span>
+
+<span class="sd">           {variable}: {old_value1} = {new_value1}, {old_value2} = {new_value2},...</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">recoding_syntax</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span> <span class="o">=</span> <span class="p">[</span><span class="n">recoding_syntax</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span> <span class="o">=</span> <span class="n">recoding_syntax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_recode</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">syntax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_recode_txt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_variable_recoding</span><span class="p">(</span><span class="n">syntax</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_subject_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_subject_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_subject_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set subject variables to be considered for the analysis.</span>
+
+<span class="sd">        The method sets the subject variables. Subject variables are between</span>
+<span class="sd">        subject factors or other variables defines in the subject information</span>
+<span class="sd">        section (#s) of the Expyriment data file. The method requires a</span>
+<span class="sd">        re-reading of the data files and might be therefore time consuming.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        variables : str or list</span>
+<span class="sd">            A string or a list of strings that represent the subject</span>
+<span class="sd">            variables</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span> <span class="o">=</span> <span class="p">[</span><span class="n">variables</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subject_variables</span> <span class="o">=</span> <span class="n">variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.set_computed_variables"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.set_computed_variables">[docs]</a>    <span class="k">def</span> <span class="nf">set_computed_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compute_syntax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set syntax to compute new variables.</span>
+
+<span class="sd">        The method defines the variables, which will be computed. It can not</span>
+<span class="sd">        be applied on variables that have been added manually via</span>
+<span class="sd">        `add_variables`. The method requires a re-reading of the data files</span>
+<span class="sd">        and might be therefore time consuming.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        compute_syntax : str or list</span>
+<span class="sd">            A string or a list of strings that represent the syntax to</span>
+<span class="sd">            compute the new variables</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Compute Syntax::</span>
+
+<span class="sd">            {new-variable} = {variable} {relation/operation} {variable/value}</span>
+<span class="sd">                {new-variable} -- a new not yet defined variable name</span>
+<span class="sd">                {variable}     -- a defined data variable</span>
+<span class="sd">                {relation}     --  ==, !=, &gt;, &lt;, &gt;=, &lt;=, =&gt; or &lt;=</span>
+<span class="sd">                {operation}    -- +, -, *, / or %</span>
+<span class="sd">                {value}        -- string or numeric</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">compute_syntax</span><span class="p">)</span> <span class="o">!=</span> <span class="n">_types</span><span class="o">.</span><span class="n">ListType</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span> <span class="o">=</span> <span class="p">[</span><span class="n">compute_syntax</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span> <span class="o">=</span> <span class="n">compute_syntax</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_computes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_variables</span> <span class="o">=</span> <span class="n">read_datafile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_folder</span> <span class="o">+</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">_data_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                        <span class="n">only_header_and_variable_names</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>  <span class="c"># original variables</span>
+        <span class="k">for</span> <span class="n">syntax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_computes_txt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_compute_variable</span><span class="p">(</span><span class="n">syntax</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_data</span> <span class="o">=</span> <span class="p">[]</span>
+</div>
+<div class="viewcode-block" id="Aggregator.print_n_trials"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.print_n_trials">[docs]</a>    <span class="k">def</span> <span class="nf">print_n_trials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variables</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Print the number of trials in the combinations of the independent</span>
+<span class="sd">        variables.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The functions is for instance useful to quickly check the experimental</span>
+<span class="sd">        design.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        variables : str or list</span>
+<span class="sd">            A string or a list of strings that represent the names of one or</span>
+<span class="sd">            more data variables (aggregator.variables)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">old_iv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span>
+        <span class="n">old_dv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_dependent_variables</span><span class="p">(</span><span class="s">&quot;n_trials&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_independent_variables</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">varnames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;Subject {0}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">varnames</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">cnt</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">cnt</span><span class="p">],</span> <span class="nb">unicode</span><span class="p">):</span>
+                        <span class="n">_row_data</span> <span class="o">=</span> <span class="n">_unicode2str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">cnt</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_row_data</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">cnt</span><span class="p">]</span>
+                    <span class="k">print</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">{0}:</span><span class="se">\t</span><span class="s">{1}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">var</span><span class="p">[</span><span class="mi">4</span><span class="p">:],</span> <span class="n">_row_data</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span> <span class="o">=</span> <span class="n">old_dv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span> <span class="o">=</span> <span class="n">old_iv</span>
+</div>
+<div class="viewcode-block" id="Aggregator.aggregate"><a class="viewcode-back" href="../../../expyriment.misc.data_preprocessing.Aggregator.html#expyriment.misc.data_preprocessing.Aggregator.aggregate">[docs]</a>    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_file</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">column_subject_id</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Aggregate the data as defined by the design.</span>
+
+<span class="sd">        The design will be printed and the resulting data will be return as</span>
+<span class="sd">        numpy.array together with the variable names.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        output_file : str, optional</span>
+<span class="sd">            name of data output file. If this output_file is defined the</span>
+<span class="sd">            function write the results as csv data file</span>
+<span class="sd">        column_subject_id : int, optional</span>
+<span class="sd">            data column containing the subject id (default=0)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        result : numpy.array</span>
+<span class="sd">        new_variable_names : list of strings</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">data</span><span class="p">,</span> <span class="n">_variables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concatenated_data</span>
+        <span class="n">subjects</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">column_subject_id</span><span class="p">]))</span>
+        <span class="n">subjects</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="c"># get all iv values</span>
+        <span class="n">iv_values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">iv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="n">iv</span><span class="p">]))</span>
+            <span class="n">tmp</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+            <span class="n">iv_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
+
+        <span class="n">new_variable_names</span><span class="p">,</span> <span class="n">combinations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_new_variables</span><span class="p">(</span><span class="n">iv_values</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">combinations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">combinations</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;total&quot;</span><span class="p">]</span>
+        <span class="c"># calculate subject wise</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">subjects</span><span class="p">:</span>
+            <span class="n">mtx</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="p">[:,</span> <span class="n">column_subject_id</span><span class="p">]</span> <span class="o">==</span> <span class="n">sub</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">sub</span><span class="p">]</span>
+            <span class="c"># subject info</span>
+            <span class="k">for</span> <span class="n">sv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject_variables</span><span class="p">:</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mtx</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_variable_id</span><span class="p">(</span><span class="n">sv</span><span class="p">)])</span>
+            <span class="k">for</span> <span class="n">dv</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dv</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">fac_cmb</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">fac_cmb</span> <span class="o">==</span> <span class="s">&quot;total&quot;</span><span class="p">:</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mtx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c"># find idx of combinations</span>
+                        <span class="n">idx</span> <span class="o">=</span> <span class="bp">None</span>
+                        <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">iv</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iv</span><span class="p">):</span>
+                            <span class="n">tmp</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mtx</span><span class="p">[:,</span> <span class="n">iv</span><span class="p">]</span> <span class="o">==</span> <span class="n">fac_cmb</span><span class="p">[</span><span class="n">c</span><span class="p">])</span>
+                            <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                                <span class="n">idx</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">&amp;</span> <span class="n">tmp</span>
+                    <span class="c"># calc mean over idx</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="n">mtx</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">dv</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+                        <span class="k">if</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;median&quot;</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+                        <span class="k">elif</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;mean&quot;</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+                        <span class="k">elif</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;sum&quot;</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+                        <span class="k">elif</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;std&quot;</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">values</span><span class="p">)))</span>
+                        <span class="k">elif</span> <span class="n">dv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;n_trials&quot;</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">NaN</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_np</span><span class="o">.</span><span class="n">NaN</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;|S99&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">_np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">result</span><span class="p">,</span> <span class="p">[</span><span class="n">row</span><span class="p">]]</span>
+
+        <span class="k">if</span> <span class="n">output_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">write_csv_file</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">new_variable_names</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">new_variable_names</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../index.html">
+              <img class="logo" src="../../../_static/xpy_button.png" alt="Logo"/>
+            </a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../../../np-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">Expyriment 0.7.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../expyriment.html" >expyriment</a> &raquo;</li>
+          <li><a href="../misc.html" >expyriment.misc</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Florian Krause &amp; Oliver Lindemann.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

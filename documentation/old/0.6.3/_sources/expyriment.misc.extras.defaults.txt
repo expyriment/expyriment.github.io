@@ -1,0 +1,8 @@
+expyriment.misc.extras.defaults
+===============================
+
+.. automodule:: expyriment.misc.extras.defaults
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:

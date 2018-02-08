@@ -1,0 +1,23 @@
+expyriment.io.extras.defaults
+=============================
+
+.. automodule:: expyriment.io.extras.defaults
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
+Attributes
+-----------
+.. py:data:: expyriment.io.extras.defaults.midiin_buffer_size
+
+   default value: 1024
+
+.. py:data:: expyriment.io.extras.defaults.midiout_buffer_size
+
+   default value: 1024
+
+.. py:data:: expyriment.io.extras.defaults.midiout_latency
+
+   default value: 0
+

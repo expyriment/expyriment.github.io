@@ -1,0 +1,21 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 fingerprints for Expyriment 0.7.0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fb0ca0b2fa8d9a1b03cdcdfa0161dac6a6048c3e  expyriment-0.7.0.win32.exe
+6fb9eb9c704f52b85da01e5d6bffa37d9fa7fc72  expyriment-0.7.0.zip
+
+Oliver Lindemann <lindemann09@googlemail.com>
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQEcBAEBAgAGBQJTjChoAAoJEMWO3toBKlFqP14H/1F1jh8tn31bToEI01oLsW5t
+zWkiyemUeBzqblDyTx+xqMI3kxd7JawsYQJ21E+lyQkkUyVdGG5FOFZYWErVGH8T
+aYh+o69qS2giRiCccy3wOwoUjkFhcXGH877ncv95Exjibwe8rT2SWbzZ/JwmUiMj
+j3vpsRMn+g4F39Hf7AsdtRmAWWu1p5FDbK1hvQ1zZEd48hSJQd1fo/pwZmcN5NPr
+18QA5wyFXZXoxxLYac3RFYt8rqIQivAB4DrbsVcFvpobNXpf+6a51+3rcO5JC9U3
+QstSQ8LvV3768WHywpLVEtoUiVNWokHEFp1PMor5c/wH13vcjlZrdzcjSn+47T8=
+=93xH
+-----END PGP SIGNATURE-----

@@ -1,0 +1,17 @@
+expyriment.design.extras
+========================
+
+.. automodule:: expyriment.design.extras
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
+
+Modules
+---------
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   expyriment.design.extras.defaults
