@@ -1,8 +1,0 @@
-expyriment.io.TextInput
-=======================
-
-.. autoclass:: expyriment.io.TextInput
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.TextInput.__init__

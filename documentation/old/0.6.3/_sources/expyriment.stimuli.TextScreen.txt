@@ -1,8 +1,0 @@
-expyriment.stimuli.TextScreen
-=============================
-
-.. autoclass:: expyriment.stimuli.TextScreen
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.TextScreen.__init__

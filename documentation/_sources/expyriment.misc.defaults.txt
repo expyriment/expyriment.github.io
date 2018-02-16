@@ -1,9 +1,0 @@
-expyriment.misc.defaults
-========================
-
-.. automodule:: expyriment.misc.defaults
-
-Attributes
------------
-
-

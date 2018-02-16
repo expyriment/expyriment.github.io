@@ -1,8 +1,0 @@
-expyriment.stimuli.extras.GaborPatch
-====================================
-
-.. autoclass:: expyriment.stimuli.extras.GaborPatch
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.extras.GaborPatch.__init__

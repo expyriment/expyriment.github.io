@@ -1,8 +1,0 @@
-expyriment.io.MarkerOutput
-==========================
-
-.. autoclass:: expyriment.io.MarkerOutput
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.MarkerOutput.__init__

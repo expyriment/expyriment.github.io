@@ -1,8 +1,0 @@
-expyriment.io.extras.MidiIn
-===========================
-
-.. autoclass:: expyriment.io.extras.MidiIn
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.extras.MidiIn.__init__

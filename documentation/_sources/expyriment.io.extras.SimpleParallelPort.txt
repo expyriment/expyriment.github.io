@@ -1,8 +1,0 @@
-expyriment.io.extras.SimpleParallelPort
-=======================================
-
-.. autoclass:: expyriment.io.extras.SimpleParallelPort
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.extras.SimpleParallelPort.__init__

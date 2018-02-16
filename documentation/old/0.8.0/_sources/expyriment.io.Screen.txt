@@ -1,8 +1,0 @@
-expyriment.io.Screen
-====================
-
-.. autoclass:: expyriment.io.Screen
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.Screen.__init__

@@ -1,8 +1,0 @@
-expyriment.stimuli.FixCross
-===========================
-
-.. autoclass:: expyriment.stimuli.FixCross
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.FixCross.__init__

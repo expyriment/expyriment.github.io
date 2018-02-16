@@ -1,8 +1,0 @@
-expyriment.io.StreamingButtonBox
-================================
-
-.. autoclass:: expyriment.io.StreamingButtonBox
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.StreamingButtonBox.__init__

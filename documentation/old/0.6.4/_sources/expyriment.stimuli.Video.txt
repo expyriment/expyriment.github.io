@@ -1,8 +1,0 @@
-expyriment.stimuli.Video
-========================
-
-.. autoclass:: expyriment.stimuli.Video
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.Video.__init__

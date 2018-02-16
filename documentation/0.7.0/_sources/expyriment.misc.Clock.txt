@@ -1,8 +1,0 @@
-expyriment.misc.Clock
-=====================
-
-.. autoclass:: expyriment.misc.Clock
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.misc.Clock.__init__

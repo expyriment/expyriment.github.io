@@ -1,8 +1,0 @@
-expyriment.stimuli.Shape
-========================
-
-.. autoclass:: expyriment.stimuli.Shape
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.Shape.__init__

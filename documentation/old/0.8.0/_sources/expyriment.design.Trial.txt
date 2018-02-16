@@ -1,8 +1,0 @@
-expyriment.design.Trial
-=======================
-
-.. autoclass:: expyriment.design.Trial
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.design.Trial.__init__

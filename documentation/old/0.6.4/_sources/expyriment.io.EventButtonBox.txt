@@ -1,8 +1,0 @@
-expyriment.io.EventButtonBox
-============================
-
-.. autoclass:: expyriment.io.EventButtonBox
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.EventButtonBox.__init__

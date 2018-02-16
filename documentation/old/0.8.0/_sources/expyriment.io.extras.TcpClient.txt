@@ -1,8 +1,0 @@
-expyriment.io.extras.TcpClient
-==============================
-
-.. autoclass:: expyriment.io.extras.TcpClient
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.extras.TcpClient.__init__

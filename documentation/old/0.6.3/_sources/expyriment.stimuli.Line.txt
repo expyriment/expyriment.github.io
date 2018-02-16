@@ -1,8 +1,0 @@
-expyriment.stimuli.Line
-=======================
-
-.. autoclass:: expyriment.stimuli.Line
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.Line.__init__

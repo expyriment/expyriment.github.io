@@ -1,8 +1,0 @@
-expyriment.stimuli.extras.LcdSymbol
-===================================
-
-.. autoclass:: expyriment.stimuli.extras.LcdSymbol
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.extras.LcdSymbol.__init__

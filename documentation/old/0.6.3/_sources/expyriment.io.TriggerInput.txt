@@ -1,8 +1,0 @@
-expyriment.io.TriggerInput
-==========================
-
-.. autoclass:: expyriment.io.TriggerInput
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.TriggerInput.__init__

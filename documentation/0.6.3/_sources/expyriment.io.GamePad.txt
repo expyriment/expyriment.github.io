@@ -1,8 +1,0 @@
-expyriment.io.GamePad
-=====================
-
-.. autoclass:: expyriment.io.GamePad
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.io.GamePad.__init__

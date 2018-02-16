@@ -1,8 +1,0 @@
-expyriment.stimuli.extras.NoiseTone
-===================================
-
-.. autoclass:: expyriment.stimuli.extras.NoiseTone
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.extras.NoiseTone.__init__

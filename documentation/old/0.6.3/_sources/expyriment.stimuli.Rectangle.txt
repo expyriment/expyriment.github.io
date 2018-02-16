@@ -1,8 +1,0 @@
-expyriment.stimuli.Rectangle
-============================
-
-.. autoclass:: expyriment.stimuli.Rectangle
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.Rectangle.__init__

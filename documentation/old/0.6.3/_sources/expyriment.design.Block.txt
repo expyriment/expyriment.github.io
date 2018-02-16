@@ -1,8 +1,0 @@
-expyriment.design.Block
-=======================
-
-.. autoclass:: expyriment.design.Block
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.design.Block.__init__

@@ -1,8 +1,0 @@
-expyriment.stimuli.Ellipse
-==========================
-
-.. autoclass:: expyriment.stimuli.Ellipse
-   :members:
-   :inherited-members:
-
-   .. automethod:: expyriment.stimuli.Ellipse.__init__
