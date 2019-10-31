@@ -274,7 +274,7 @@
 		text-decoration: none;
 		width: 100%;
 		outline: 0;
-	}
+    }
 
 		input[type="text"]:focus,
 		input[type="password"]:focus,
@@ -1181,3 +1181,19 @@
         code a:hover {
             text-decoration: underline;
         }
+
+
+/* 10-years link */
+.party{
+    all: revert;
+	position:fixed;
+	bottom:50px;
+	right:10px;
+	text-align:center;
+    font-size:100px;
+    text-decoration: none;
+    -webkit-user-select: none; /* Safari */        
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    user-select: none; /* Standard */
+}
