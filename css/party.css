@@ -1,6 +1,7 @@
 /* 10-years link */
 .party{
-    all: initial;
+    /*all: initial;*/
+    border-bottom: none;
 	position: fixed;
 	bottom: 50px;
 	right: 10px;
