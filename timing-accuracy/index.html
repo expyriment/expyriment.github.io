@@ -1,89 +1,11 @@
 <!DOCTYPE html>
-
 <html>
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>On the timing accuracy of Expyriment</title>
-<meta content="Florian Krause &amp; Oliver Lindemann" name="author"/>
-<meta content="A commentary on Bridges et al. (2020)" name="description"/>
-<link href="_resources/_stuffpages/styles/default.css" media="screen" rel="stylesheet"/>
-<style type="text/css">ul { list-style-type: lower-alpha; }</style>
-<p><link href="https://www.expyriment.org/favicon.ico" rel="icon" type="image/x-icon"/>
-</p></head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=https://blog.expyriment.org/timing-accuracy/">``
+    <title>Redirecting...</title>
+</head>
 <body>
-<header>
-<h1>On the timing accuracy of Expyriment</h1>
-<p>A commentary on Bridges et al. (2020)</p>
-</header>
-<main>
-<p><center>
-<a href="http://www.expyriment.org"><img alt="Expyriment Logo" src="https://www.expyriment.org/images/xpy_button.png"/></a>
-</center></p>
-<p><strong>In the article "The timing mega-study: comparing a range of experiment
-generators, both lab-based and online" by <a href="https://doi.org/10.7717/peerj.9414">Bridges et al. (2020)</a>, the authors attempted to compare the timing accuracy of their own stimulus and response time recording software <em><a href="https://www.psychopy.org">PsychoPy</a></em> to that of a variety of other free as well as commercial software solutions. <a href="https://www.expyriment.org"><em>Expyriment</em></a> was amongst those tested, and not only did it apparenlty perform very poorly, the authors also explicitly advised their readers against using it. We see it as our obligation to our users and fellow researchers to clarify that these results are neither representative nor generalizable.</strong></p>
-<hr/>
-<p><em>A more comprehensive article on this topic is also available as a <a href="https://psyarxiv.com/k5vd9">preprint</a>.</em></p>
-<hr/>
-<p>Unlike most of the tested software solutions which constitute full desktop applications with graphical user interfaces, <em>Expyriment</em> is a lightweight and flexible library for the Python programming language. Its purpose is not to provide researchers with an “experiment generator” application, but with the building blocks to programme timing-critical experiments in Python or to develop such applications themselves (e.g. <em><a href="https://osdoc.cogsci.nl">OpenSesame</a></em> or <em><a href="https://www.trajtracker.com">TrajTracker</a></em>). While robustness against erroneous usage is an important quality criterion for an experiment generator application, such a criterion is difficult to apply in a programming library, which gives users maximal flexibility, but also responsibility for their implementation and final product. Upon closer examination of the described test procedures as well as the publicly available <a href="https://osf.io/3kx7g/">supplementary material of Bridges et al. (2020)</a>, we identified several issues on both, the conceptual as well as the implementation level, which artificially produced the reported results:</p>
-<ol>
-<li>
-<p>Being the main developers and maintainers of one of the tested software solutions constitutes a conflict of interest, even when that software is non-commercial, as it introduces an inherent imbalance in the degree of experience one has with each solution. The authors unfortunately seem to have been particularly unfamiliar with <em>Expyriment</em>.</p>
-</li>
-<li>
-<p>Despite the authors’ claims of using each tested software solution according to their respective documentation, the publicly available test scripts, results and raw data show no signs that the authors attempted to verify that the system is set up to allow for timing-accurate visual stimulus presentation in the first place:</p>
-<ul>
-<li>
-<p>The reported visual duration times for <em>Expyriment</em> on Ubuntu Linux and MacOS are around half the refresh rate of the corresponding test systems (60 Hz). This indicates that code execution after stimulus presentation was not blocked until the vertical retrace has occurred - an important requirement for a system’s ability to accurately report when exactly a stimulus was being drawn on the screen (see also <a href="https://doi.org/10.3758/s13428-013-0390-6">Krause &amp; Lindemann, 2014</a>). Notably, <em>Expyriment</em> provides the functionality to explicitely test this as part of its <a href="https://docs.expyriment.org/Testsuite.html">test suite</a>, and we actively encourage users to verify this in the lab.</p>
-</li>
-<li>
-<p>The event files written by <em>Expyriment</em> during the reported tests contain the information that, despite the obvious inability of the system to block on the vertical retrace, the authors continued to test with the default method of attempting to block on the vertical retrace, rather than switching to the alternative method as suggested in the official <a href="https://docs.expyriment.org/Timing.html#visual">documentation</a>, which usually solves this issue on systems that fail to block with the default method.</p>
-</li>
-<li>
-<p>The article does also not mention any other steps taken to verify, before testing, that the system has been set up as advised, and it is to be expected that the results would have differed significantly, had the authors consulted the documentation, as can be expected from a regular <em>Expyriment</em> user.</p>
-</li>
-</ul>
-</li>
-<li>
-<p>In addition to the apparently non-optimised test setup, the publicly available implementations of the tests themselves unfortunately reveal further critical oversights that actively introduced timing inaccuracies:</p>
-<ul>
-<li>
-<p>Time-consuming procedures (e.g. stimulus preloading) were performed at timing-critical moments, without compensating for their computation time (in both the stimulus and response tests).</p>
-</li>
-<li>
-<p>Presentation of a new visual stimulus was initiated after the full interstimulus interval (e.g. 300 ms) has already passed, while the goal seemed to have been having the new stimulus already on the display at the end of said interval (in the response test).</p>
-</li>
-<li>
-<p>The implementation of the response test differed significantly in aspects that directly affected the measurement outcome, with the visual stimulus being presented first, followed by the TTL pulse, followed by the auditory stimulus, compared to other implementations (e.g. the one for <em>Open Sesame</em>), where the auditory stimulus was presented first, followed by the visual stimulus, followed by the TTL pulse.</p>
-</li>
-<li>
-<p>The measurements of the timing accuracy of auditory stimulus presentation used vastly different settings, with the audio buffer kept at the conservative default of 2048 samples, compared to 1024 samples in <em>OpenSesame</em> and even 128 samples in <em>PsychoPy</em>. Since the size of that buffer is directly related to audio latency and jitter, this renders the reported results misleading at best.</p>
-</li>
-</ul>
-</li>
-<li>
-<p>The authors incorrectly conclude that timing accuracy in <em>Expyriment</em> is generally hindered by its usage of the <em><a href="https://www.pygame.org">Pygame</a></em> library, which has not been optimized for low-latency and high-precision timing. Contrary to that statement, the following is true:</p>
-<ul>
-<li>
-<p>Visual stimulus presentation in <em>Expyriment</em> is by default based on <a href="http://pyopengl.sourceforge.net"><em>PyOpenGL</em></a>.</p>
-</li>
-<li>
-<p>Both stimulus presentation as well as response monitoring with <em>Expyriment</em> can <a href="https://link.springer.com/article/10.3758%2Fs13428-013-0390-6#Sec9">demonstrably</a> be millisecond-accurate.</p>
-</li>
-</ul>
-</li>
-</ol>
-<p>It goes without saying that we would have gladly provided support to the authors, as we do for all our users, and would have assisted with the correct implementation of the test scripts. Unfortunately, we were not approached by the authors at any point in time, and only learned about their efforts through the published article.</p>
-</main>
-<footer>
-<p>
-<strong>© <a href="https://www.expyriment.org">Florian Krause &amp; Oliver Lindemann</a></strong>
-<br/>
-<em>2021-06-28</em>
-</p>
-<p>
-Created with <a href="https://fladd.github.io/StuffPages/">StuffPages</a>
-</p>
-</footer>
+    <p>If you are not redirected, <a href="https://blog.expyriment.org/timing-accuracy/">click here</a>.</p>
 </body>
 </html>
